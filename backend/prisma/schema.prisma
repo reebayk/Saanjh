@@ -1,14 +1,145 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER TABLE
+// ============================================
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // bcrypt hashed
+  name      String
+  settings  Json?    @default("{\"pomodoroWorkDuration\": 25, \"pomodoroShortBreak\": 5, \"pomodoroLongBreak\": 15, \"notificationsEnabled\": true, \"soundEnabled\": true}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tasks            Task[]
+  notifications    Notification[]
+  pomodoroSessions PomodoroSession[]
+
+  @@map("users")
+}
+
+// ============================================
+// TASK TABLE
+// ============================================
+model Task {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String   @db.VarChar(200)
+  description String?  @db.Text
+  day         Day      @default(SOMEDAY)
+  status      Status   @default(PENDING)
+  priority    Priority @default(MEDIUM)
+  position    Int      @default(0) // For ordering within a day
+  completed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notifications    Notification[]
+  pomodoroSessions PomodoroSession[]
+
+  // Indexes
+  @@index([userId, day]) // Common query: get tasks by user and day
+  @@index([userId, status]) // Filter by status
+  @@index([userId, completed]) // Filter completed tasks
+  @@index([createdAt]) // Sort by creation date
+  @@map("tasks")
+}
+
+// ============================================
+// NOTIFICATION TABLE
+// ============================================
+model Notification {
+  id           String           @id @default(cuid())
+  userId       String
+  taskId       String?          // Nullable: notification can exist without task
+  type         NotificationType
+  message      String           @db.VarChar(200)
+  triggerTime  DateTime         // When to trigger the notification
+  sent         Boolean          @default(false)
+  sentAt       DateTime?        // Timestamp when notification was sent
+  soundEnabled Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  // Relations
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@index([userId, sent]) // Get unsent notifications
+  @@index([triggerTime]) // Query by trigger time
+  @@index([taskId]) // Get notifications for a task
+  @@map("notifications")
+}
+
+// ============================================
+// POMODORO SESSION TABLE
+// ============================================
+model PomodoroSession {
+  id          String   @id @default(cuid())
+  userId      String
+  taskId      String?  // Nullable: pomodoro can be general focus session
+  duration    Int      // Duration in minutes (typically 25)
+  completedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  // Indexes
+  @@index([userId, completedAt]) // Get sessions by user and date
+  @@index([taskId]) // Get sessions for a task
+  @@map("pomodoro_sessions")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum Day {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+  SOMEDAY // For tasks without specific day (backlog)
+
+  @@map("day")
+}
+
+enum Status {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+
+  @@map("status")
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+
+  @@map("priority")
+}
+
+enum NotificationType {
+  REMINDER   // General reminder (e.g., 15 min before)
+  ALARM      // Time-specific alarm
+
+  @@map("notification_type")
 }
