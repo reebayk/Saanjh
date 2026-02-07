@@ -1,6 +1,7 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import authRoutes from './routes/auth.routes';
 
 const app = express();
 
@@ -9,8 +10,11 @@ app.use(helmet()); // Security headers
 app.use(cors()); // Allow frontend to connect
 app.use(express.json()); // Parse JSON bodies
 
+// Routes
+app.use('/api/auth', authRoutes); // Auth endpoints
+
 // Health check endpoint
-app.get('/api/health', (req: Request, res: Response) => {
+app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -19,7 +23,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 });
 
 // 404 handler
-app.use((req: Request, res: Response) => {
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     error: {
