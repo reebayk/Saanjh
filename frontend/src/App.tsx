@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Dashboard from './pages/Dashboard';
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -32,8 +33,7 @@ function App() {
           element={
             <ProtectedRoute>
               <div className="p-8">
-                <h1 className="text-2xl font-bold">Dashboard (Coming Soon!)</h1>
-                <p className="text-gray-600 mt-2">Task dashboard will appear here</p>
+                <Dashboard />
               </div>
             </ProtectedRoute>
           }
